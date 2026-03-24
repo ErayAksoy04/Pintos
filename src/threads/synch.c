@@ -34,6 +34,9 @@
 
 static struct thread *sema_get_max_priority_thread (struct semaphore *);
 static void lock_update_priority (struct lock *);
+bool compare_threads_by_priority (const struct list_elem *,
+                                 const struct list_elem *,
+                                 void *);
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -71,7 +74,8 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      list_push_back (&sema->waiters, &thread_current ()->elem);
+      list_insert_ordered (&sema->waiters, &thread_current ()->elem,
+                           compare_threads_by_priority, NULL);
       thread_block ();
     }
   sema->value--;
@@ -117,7 +121,7 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
+    thread_unblock (list_entry (list_pop_back (&sema->waiters),
                                 struct thread, elem));
   sema->value++;
   intr_set_level (old_level);
@@ -252,7 +256,9 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  list_remove (&lock->elem);
   lock->holder = NULL;
+  thread_update_priority (thread_current ());
   sema_up (&lock->semaphore);
 }
 

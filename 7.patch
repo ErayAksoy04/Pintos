@@ -1,0 +1,23 @@
+From 73177b1686752ff81381dd3757a773b49e6179ba Mon Sep 17 00:00:00 2001
+From: Student <student@pintos.local>
+Date: Mon, 23 Mar 2026 23:47:30 +0000
+Subject: [PATCH] Task 2 Part 3: lock_release with priority restore
+
+---
+ src/threads/synch.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/threads/synch.c b/src/threads/synch.c
+index ca17403..4754663 100644
+--- a/src/threads/synch.c
++++ b/src/threads/synch.c
+@@ -74,8 +74,7 @@ sema_down (struct semaphore *sema)
+   old_level = intr_disable ();
+   while (sema->value == 0) 
+     {
+-      list_insert_ordered (&sema->waiters, &thread_current ()->elem,
+-                           compare_threads_by_priority, NULL);
++      list_push_back (&sema->waiters, &thread_current ()->elem);
+       thread_block ();
+     }
+   sema->value--;
