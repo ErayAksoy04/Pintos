@@ -325,7 +325,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
    LOCK).  LOCK must be held before calling this function.
 
    An interrupt handler cannot acquire a lock, so it does not
-   make sense to try to signal a condition variable within an
+   make sense to try to broadcast a condition within an
    interrupt handler. */
 void
 cond_broadcast (struct condition *cond, struct lock *lock) 
@@ -335,4 +335,15 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
+}
+
+/* Compares locks by priority for list operations. */
+bool
+compare_locks_by_priority (const struct list_elem *a,
+                          const struct list_elem *b,
+                          void *aux UNUSED) 
+{
+  struct lock *la = list_entry (a, struct lock, elem);
+  struct lock *lb = list_entry (b, struct lock, elem);
+  return la->max_priority > lb->max_priority;
 }
