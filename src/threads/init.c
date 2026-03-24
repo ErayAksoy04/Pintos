@@ -277,6 +277,13 @@ parse_options (char **argv)
   return argv;
 }
 
+/* Prints "Hello World!". */
+static void
+hello_action (char **argv UNUSED)
+{
+  printf ("Hello World!\n");
+}
+
 /* Runs the task specified in ARGV[1]. */
 static void
 run_task (char **argv)
@@ -309,6 +316,7 @@ run_actions (char **argv)
   static const struct action actions[] = 
     {
       {"run", 2, run_task},
+      {"hello", 1, hello_action},
 #ifdef FILESYS
       {"ls", 1, fsutil_ls},
       {"cat", 2, fsutil_cat},
@@ -318,6 +326,12 @@ run_actions (char **argv)
 #endif
       {NULL, 0, NULL},
     };
+
+  if (*argv == NULL)
+    {
+      hello_action (argv);
+      return;
+    }
 
   while (*argv != NULL)
     {
