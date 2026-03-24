@@ -32,6 +32,9 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+static struct thread *sema_get_max_priority_thread (struct semaphore *);
+static void lock_update_priority (struct lock *);
+
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -178,6 +181,7 @@ lock_init (struct lock *lock)
   ASSERT (lock != NULL);
 
   lock->holder = NULL;
+  lock->max_priority = 0;
   sema_init (&lock->semaphore, 1);
 }
 
@@ -196,7 +200,24 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  if (lock->holder != NULL)
+    {
+      thread_current ()->current_lock = lock;
+      int donate_priority = thread_get_priority ();
+      struct thread *holder = lock->holder;
+
+      if (holder->priority < donate_priority)
+        {
+          holder->priority = donate_priority;
+          if (holder->status == THREAD_READY)
+            thread_ready_rearrange (holder);
+        }
+    }
+
   sema_down (&lock->semaphore);
+
+  thread_current ()->current_lock = NULL;
+  list_push_back (&thread_current ()->locks_held, &lock->elem);
   lock->holder = thread_current ();
 }
 
@@ -337,6 +358,33 @@ cond_broadcast (struct condition *cond, struct lock *lock)
     cond_signal (cond, lock);
 }
 
+/* Get the thread with the highest priority from waiters. */
+static struct thread *
+sema_get_max_priority_thread (struct semaphore *sema)
+{
+  ASSERT (!list_empty (&sema->waiters));
+  return list_entry (list_max (&sema->waiters,
+                     compare_threads_by_priority, NULL),
+                     struct thread, elem);
+}
+
+/* Update lock's max_priority based on waiters. */
+static void
+lock_update_priority (struct lock *lock)
+{
+  int result = 0;
+  
+  if (!list_empty (&lock->semaphore.waiters))
+    {
+      struct thread *max_thread = sema_get_max_priority_thread (&lock->semaphore);
+      if (lock->max_priority < max_thread->priority)
+        result = max_thread->priority;
+      else
+        return;
+    }
+  lock->max_priority = result;
+}
+
 /* Compares locks by priority for list operations. */
 bool
 compare_locks_by_priority (const struct list_elem *a,
@@ -345,5 +393,5 @@ compare_locks_by_priority (const struct list_elem *a,
 {
   struct lock *la = list_entry (a, struct lock, elem);
   struct lock *lb = list_entry (b, struct lock, elem);
-  return la->max_priority > lb->max_priority;
+  return la->max_priority <= lb->max_priority;
 }
