@@ -92,11 +92,10 @@
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1em}
 
-\title{INF333 2023-2024 Spring Semester}
+\title{INF333 2025-2026 Spring Semester}
 \author{
-\textbf{\color{blue}{Şirinler}} {\small(your group name, use an appropriate color)}
-\\ Student 1 Name <stu1@gsu.edu.tr>
-\\ Student 2 Name <stu2@gsu.edu.tr>}
+\\ Eray Aksoy <22401997@gsu.edu.tr>
+\\ Melissa Katz <22402112@gsu.edu.tr>}
 
 \begin{document}
 
@@ -107,13 +106,12 @@ Design Document}
 
 Please provide answers inline in a \texttt{quote} environment.
 
-
 \section{Preliminaries}
 
 \textbf{Q1:} If you have any preliminary comments on your submission, notes for
 the TAs, or extra credit, please give them here.
 \begin{quote}
-  Answer here
+  We focused on passing the core tests and didn't implement any extra credit features
 \end{quote}
 
 
@@ -122,7 +120,7 @@ preparing your submission, other than the Pintos documentation, course text, and
 lecture notes.
 
 \begin{quote}
-  Answer here
+  We mostly relied on the Stanford Pintos documentation (PDF), the course slides, and some general StackOverflow threads to understand how fixed-point arithmetic works in C.
 \end{quote}
 
 
@@ -135,7 +133,11 @@ lecture notes.
 
 Identify the purpose of each in 25 words or less.
 \begin{quote}
-  Answer here
+  \texttt{int64\_t remaining\_time\_to\_wake\_up;} in \texttt{struct} thread: Keeps track of how many ticks are left before the thread wakes up.
+
+\texttt{struct list\_elem sleepelem;} in \texttt{struct} thread: Used to put the thread in the sleep list.
+
+\texttt{struct list sleeping\_list;} (Global in thread.c): A list holding all currently blocked/sleeping threads.
 \end{quote}
 
 
@@ -146,14 +148,14 @@ Identify the purpose of each in 25 words or less.
 how it interacts with thread termination.
 
 \begin{quote}
-  Answer here
+  We did not implement \texttt{thread\_join()} and thread termination synchronization in this project since it is not part of Project 1. The tests for Project 1 focus primarily on alarm clock, priority scheduling, and MLFQS.
 \end{quote}
 
 \textbf{Q5:} What steps are taken to minimize the amount of time spent in the
 timer interrupt handler?
 
 \begin{quote}
-  Answer here
+  In \texttt{thread\_tick()}, we iterate through the \texttt{sleeping\_list}. For each sleeping thread, we decrement its \texttt{remaining\_time\_to\_wake\_up}. If it reaches 0, we unblock it and remove it from the list. It takes O(N) time, but keeping a separate sleeping list is much better than iterating over all threads (including ready and blocked ones) in the system.
 \end{quote}
 
 
@@ -167,21 +169,21 @@ when \texttt{P} terminates without waiting, before \texttt{C} exits?  After
 \texttt{C} exits?  Are there any special cases?
 
 \begin{quote}
-  Answer here
+  As mentioned in Q4, we haven't implemented parent/child synchronization like \texttt{wait()} or \texttt{thread\_join()} in this phase.
 \end{quote}
 
 \textbf{Q7:} How are race conditions avoided when multiple threads call
 \texttt{timer\_sleep()} simultaneously?
 
 \begin{quote}
-  Answer here
+  In \texttt{timer\_sleep()}, we call \texttt{intr\_disable()} before calling \texttt{thread\_set\_sleeping()}. This ensures that setting \texttt{remaining\_time\_to\_wake\_up}, adding the thread to \texttt{sleeping\_list}, and calling \texttt{thread\_block()} happens atomically without any interruptions.
 \end{quote}
 
 \textbf{Q8:} How are race conditions avoided when a timer interrupt occurs
 during a call to \texttt{timer\_sleep()}?
 
 \begin{quote}
-  Answer here
+  Since interrupts are explicitly disabled using \texttt{intr\_disable()} at the \texttt{beginning of timer\_sleep()}, a timer interrupt cannot occur during the critical section. The interrupt will just pend until we re-enable interrupts.
 \end{quote}
 
 
@@ -191,7 +193,7 @@ during a call to \texttt{timer\_sleep()}?
 your design choices.
 
 \begin{quote}
-  Answer here
+  Our design uses a \texttt{sleeping\_list} and decrements a counter (\texttt{remaining\_time\_to\_wake\_up}) for every sleeping thread on every tick. The advantage is that it is very intuitive and easy to debug. The disadvantage is performance: it modifies every sleeping thread's data on every tick (O(N)). A more advanced design would store the absolute wake-up tick and only check the minimum, but our approach was simpler to implement and passes all the alarm tests fine.
 \end{quote}
 
 
@@ -206,7 +208,13 @@ your design choices.
 the purpose of each in 25 words or less
 
 \begin{quote}
-  Answer here
+  \texttt{int real\_priority}: The thread's original priority before any donations.
+
+\texttt{struct lock *current\_lock}: The lock the thread is currently waiting on.
+
+\texttt{struct list locks\_held}: List of all locks the thread currently holds.
+
+\texttt{int max\_priority in struct lock}: The highest priority among threads waiting for this lock.
 \end{quote}
 
 \textbf{Q11:} Describe the sequence of events when a call to
@@ -214,14 +222,14 @@ the purpose of each in 25 words or less
 handled?
 
 \begin{quote}
-  Answer here
+  In \texttt{lock\_acquire()}, if the lock has a holder, we set the thread's \texttt{current\_lock}. Then we use a while loop to follow the \texttt{current\_lock} and holder pointers upwards. If our priority is higher than the lock's \texttt{max\_priority}, we update it, update the holder's priority, and rearrange the ready list if the holder is ready. This loop naturally handles nested donations by traversing the chain of locks.
 \end{quote}
 
 \textbf{Q12:} Describe the sequence of events when \texttt{lock\_release()} is
 called on a lock that a higher-priority thread is waiting for.
 
 \begin{quote}
-  Answer here
+  In \texttt{lock\_release()}, we remove the lock from the thread's \texttt{locks\_held list}. Then we call \texttt{thread\_update\_priority()}, which recalculates the thread's priority by checking its \texttt{real\_priority} and the \texttt{max\_priority} of all remaining locks in \texttt{locks\_held}. Finally, we set lock->holder = NULL and call \texttt{sema\_up()} to wake up the highest-priority waiter.
 \end{quote}
 
 \subsection{Synchronization}
@@ -231,7 +239,7 @@ explain how your implementation avoids it. Can you use a lock to avoid this
 race?
 
 \begin{quote}
-  Answer here
+  We avoid race conditions in \texttt{thread\_set\_priority()} by disabling interrupts (\texttt{intr\_disable()}) while updating \texttt{real\_priority} and calling \texttt{thread\_update\_priority()}. We cannot use a lock here because setting priority affects the fundamental scheduling behavior, and using locks could lead to circular dependencies or infinite loops since locks themselves rely on priority.
 \end{quote}
 
 \subsection{Rationale}
@@ -240,7 +248,7 @@ race?
 another design you considered?
 
 \begin{quote}
-  Answer here
+  We chose to keep a \texttt{locks\_held} list and dynamically recalculate the priority upon lock release. This is superior to trying to "undo" a specific donation because a thread might receive multiple donations from different locks. Recalculating from the \texttt{locks\_held} list ensures we always revert to the correct priority, even in complex overlapping donation scenarios.
 \end{quote}
 
 \section{Advanced Scheduler}
@@ -252,7 +260,13 @@ another design you considered?
 the purpose of each in 25 words or less.
 
 \begin{quote}
-  Answer here
+  \texttt{int nice}: Thread's nice value.
+
+\texttt{fixed\_t recent\_cpu}: Fixed-point representation of recent CPU usage.
+
+\texttt{fixed\_t load\_avg} (Global): System-wide load average.
+
+\texttt{FP\_SHIFT\_AMOUNT 15}: Defined in \texttt{fixed\_point.h} for our 17.15 fixed-point arithmetic.
 \end{quote}
 
 \subsection{Algorithms}
@@ -267,16 +281,16 @@ given number of timer ticks:
 timer  recent_cpu    priority   thread
 ticks   A   B   C   A   B   C   to run
 -----  --  --  --  --  --  --   ------
-  0
-  4
-  8
- 12
- 16
- 20
- 24
- 28
- 32
- 36
+  0     0   0   0  63  61  59     A
+  4     4   0   0  62  61  59     A
+  8     8   0   0  61  61  59     B
+ 12     8   4   0  61  60  59     A
+ 16    12   4   0  60  60  59     B
+ 20    12   8   0  60  59  59     A
+ 24    16   8   0  59  59  59     C
+ 28    16   8   4  59  59  58     A
+ 32    20   8   4  58  59  58     B
+ 36    20  12   4  58  58  58     C
 \end{Verbatim}
 
 
@@ -285,7 +299,7 @@ the table uncertain?  If so, what rule did you use to resolve them?  Does this
 match the behavior of your scheduler?
 
 \begin{quote}
-  Answer here
+  When priorities are equal, our scheduler relies on \texttt{try\_thread\_yield()} and the way \texttt{list\_insert\_ordered()} works. A yielding thread gets re-inserted, effectively placing it behind other threads of the same priority, which creates a round-robin behavior among ties. This resolved any ambiguity and matched the expected test behaviors.
 \end{quote}
 
 
@@ -293,7 +307,7 @@ match the behavior of your scheduler?
 inside and outside interrupt context likely to affect performance?
 
 \begin{quote}
-  Answer here
+  Updating everything on every tick would be too slow. In our \texttt{thread\_tick()}, we only increment \texttt{recent\_cpu} for the running thread and update its priority every 4 ticks (\texttt{TIME\_SLICE}). Heavy calculations (updating \texttt{load\_avg} and \texttt{recent\_cpu} for all threads) are done only once per second in \texttt{thread\_tick\_one\_second()}. This division keeps the timer interrupt extremely fast.
 \end{quote}
 
 \subsection{Rationale}
@@ -303,7 +317,7 @@ disadvantages in your design choices.  If you were to have extra time to work on
 this part of the project, how might you choose to refine or improve your design?
 
 \begin{quote}
-  Answer here
+  The design directly implements the formulas from the specification. The main advantage is that keeping the MLFQS math out of the main \texttt{thread\_tick} path (except for simple increments) keeps the system responsive. If we had more time, we might optimize the \texttt{thread\_foreach} loop in \texttt{thread\_tick\_one\_second} to avoid checking inactive or dying threads.
 \end{quote}
 
 \textbf{Q20:} The assignment explains arithmetic for fixed-point math in detail,
@@ -313,7 +327,7 @@ that is, an abstract data type and/or a set of functions or macros to manipulate
 fixed-point numbers, why did you do so?  If not, why not?
 
 \begin{quote}
-  Answer here
+  We decided to use C preprocessor macros defined in a new header file (\texttt{fixed\_point.h}). We used a 15-bit fractional part (\texttt{FP\_SHIFT\_AMOUNT 15}). We used macros like \texttt{FP\_ADD}, \texttt{FP\_MULT\_MIX} instead of functions to avoid the overhead of function calls inside the frequently executed timer interrupt. It made the code in \texttt{thread.c} much cleaner to read than having raw bit-shift operations everywhere.
 \end{quote}
 
 \section{Survey Questions}
@@ -324,14 +338,14 @@ Answering these questions is optional, but it will help us improve the course in
 problems in it, too easy or too hard?  Did it take too long or too little time?
 
 \begin{quote}
-  Answer here
+  Overall it was not easy for sure but it's not something imposible thing to complete too. The priority donation logic, especially handling nested donations in \texttt{lock\_acquire}, was the hardest part. Figuring out how to safely traverse the lock chain took a lot of time. Other parts were rather easy compared to this one. 
 \end{quote}
 
 \textbf{Q2:} Did you find that working on a particular part of the assignment
 gave you greater insight into some aspect of OS design?
 
 \begin{quote}
-  Answer here
+  Yes, implementing the \texttt{MLFQS} math showed how much care is needed to balance CPU usage without floating-point units in a kernel.
 \end{quote}
 
 \textbf{Q3:} Is there some particular fact or hint we should give students in
@@ -339,20 +353,20 @@ future quarters to help them solve the problems?  Conversely, did you find any
 of our guidance to be misleading?
 
 \begin{quote}
-  Answer here
+  A hint about using a \texttt{locks\_held} list for the priority release logic would have saved us some initial trial and error.
 \end{quote}
 
 \textbf{Q4:} Do you have any suggestions for the TAs to more effectively assist
 students, either for future quarters or the remaining projects?
 
 \begin{quote}
-  Answer here
+  Maybe a short, practical session on how to effectively use GDB with Pintos would be great for the remaining projects, as debugging kernel panics was the most time-consuming part.
 \end{quote}
 
 \textbf{Q5:} Any other comments?
 
 \begin{quote}
-  Answer here
+  It was a tough but very instructive project.
 \end{quote}
 
 
