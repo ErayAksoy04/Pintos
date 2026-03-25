@@ -35,6 +35,9 @@ bool lock_held_by_current_thread (const struct lock *);
 bool compare_locks_by_priority (const struct list_elem *,
                               const struct list_elem *,
                               void *);
+bool compare_semaphore_elem_by_priority (const struct list_elem *,
+                                       const struct list_elem *,
+                                       void *);
 
 /* Condition variable. */
 struct condition 

@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "fixed_point.h"
 
 struct lock;
 
@@ -91,15 +92,16 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     int real_priority;                   /* Real priority. */
+    int nice;                           /* Nice value for MLFQS. */
+    fixed_t recent_cpu;                  /* Recent CPU time. */
     struct lock *current_lock;           /* Lock currently held. */
     struct list locks_held;              /* List of locks held. */
     struct list_elem allelem;           /* List element for all threads list. */
+    struct list_elem sleepelem;         /* List element for sleeping threads. */
+    int64_t remaining_time_to_wake_up;  /* Ticks remaining to wake up. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-
-    /* For timer_sleep(). */
-    int64_t wake_tick;                  /* Timer tick to wake up. */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -152,5 +154,7 @@ bool compare_threads_by_priority (const struct list_elem *,
 void thread_update_priority (struct thread *);
 void thread_ready_rearrange (struct thread *);
 void try_thread_yield (void);
+void thread_tick_one_second (void);
+void thread_set_sleeping (int64_t);
 
 #endif /* threads/thread.h */
