@@ -1,4 +1,4 @@
-This repository contains my implementation of the Pintos operating system, developed as part of my Operating Systems course at Galatasaray University.
+This repository contains my implementation of the Pintos operating system, developed as part of my Operating Systems course at Galatasaray University during the spring 2026 semester of my third year in computer engineering.
 
 Pintos is a simple operating system framework for the 80x80x architecture. The goal of this project was to dive deep into the kernel level and understand how threads, synchronization, and system calls actually work under the hood. It was a challenging but incredibly rewarding experience in low-level C programming
 
